@@ -1,32 +1,33 @@
 # Grafana configuration
 grafana:
-  # Add Loki as a data source
+  enabled: true
+  adminPassword: "admin12345"
+
+  service:
+    type: ClusterIP
+
   additionalDataSources:
     - name: Loki
       type: loki
       url: http://loki-gateway.monitoring.svc.cluster.local
       access: proxy
-      # Even with auth_enabled: false, Loki requires an org ID header
-      # This is a known quirk - the value can be anything since auth is disabled
+      isDefault: false
       jsonData:
         httpHeaderName1: "X-Scope-OrgID"
       secureJsonData:
-        httpHeaderValue1: "fake"
+        httpHeaderValue1: "dev"
 
-# Production options (commented out):
-# Prometheus storage:
-# prometheus:
-#   prometheusSpec:
-#     retention: 15d
-#     storageSpec:
-#       volumeClaimTemplate:
-#         spec:
-#           storageClassName: fast
-#           resources:
-#             requests:
-#               storage: 50Gi
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
 
-# Alertmanager high availability:
-# alertmanager:
-#   alertmanagerSpec:
-#     replicas: 3
+alertmanager:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+

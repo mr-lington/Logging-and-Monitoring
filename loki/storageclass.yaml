@@ -1,0 +1,10 @@
+# aws comes with gp2 by default, so you only need this when you want to create a storage like gp3 or others
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: gp3

@@ -1,35 +1,102 @@
-# Deployment mode: SingleBinary (simple), SimpleScalable (medium), Distributed (large)
+loki:
+  commonConfig:
+    replication_factor: 1
+
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  pattern_ingester:
+    enabled: true
+
+  limits_config:
+    allow_structured_metadata: true
+    volume_enabled: true
+
+  ruler:
+    enable_api: true
+
+  # Loki will use AWS S3 for chunks + index
+  storage_config:
+    aws:
+      #s3: s3://eu-west-3/<YOUR-LOKI-BUCKET>
+      #region: eu-west-3
+      bucketnames: eks-loki-bucket0070000
+      region: eu-west-3
+      s3forcepathstyle: false
+
+  # Required for Time Series Database (TSDB) mode storage
+  storage:
+    type: s3
+    bucketNames:
+      chunks: EKS-LOKI-BUCKET0070000
+      ruler: EKS-LOKI-BUCKET0070000
+      admin: EKS-LOKI-BUCKET0070000
+
+# IMPORTANT: This is what Pod Identity connects to
+serviceAccount:
+  create: true
+  name: loki
+
+#  Disable MinIO in favour of AWS S3
+minio:
+  enabled: false
+
 deploymentMode: SingleBinary
 
-# Number of replicas
 singleBinary:
   replicas: 1
+  persistence:
+    storageClass: gp3
+    accessModes:
+      - ReadWriteOnce
+    size: 30Gi
 
-# Component replicas
-write:
+#  Disable all other modes (single pod only)
+backend:
   replicas: 0
 read:
   replicas: 0
-backend:
+write:
   replicas: 0
 
-# Caching
+ingester:
+  replicas: 0
+querier:
+  replicas: 0
+queryFrontend:
+  replicas: 0
+queryScheduler:
+  replicas: 0
+distributor:
+  replicas: 0
+compactor:
+  replicas: 0
+indexGateway:
+  replicas: 0
+bloomCompactor:
+  replicas: 0
+bloomGateway:
+  replicas: 0
+
+
+# chunksCache:
+#   enabled: true
+#   replicas: 1
+#   resources:
+#     requests:
+#       cpu: 100m
+#       memory: 512Mi
+#     limits:
+#       memory: 1Gi
+#   extraArgs:
+#     - -m 512
+
 chunksCache:
   enabled: false
-resultsCache:
-  enabled: false
-
-# Helm test
-test:
-  enabled: false
-
-# All loki settings combined under one key
-loki:
-  auth_enabled: false
-  commonConfig:
-    replication_factor: 1
-  storage:
-    type: filesystem
-    filesystem:
-      directory: /var/loki/chunks
-  useTestSchema: true

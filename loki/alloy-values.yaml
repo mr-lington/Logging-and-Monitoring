@@ -1,0 +1,71 @@
+controller:
+  type: daemonset
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: alloy
+
+alloy:
+  configMap:
+    create: true
+    content: |
+      logging {
+        level = "info"
+      }
+
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Collect Kubernetes pod logs
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.kubernetes.pods.targets
+        forward_to = [loki.process.k8s.receiver]
+      }
+
+      // Process logs + add real useful Loki labels
+      loki.process "k8s" {
+        forward_to = [loki.write.default.receiver]
+
+        // OPTIONAL: add cluster label for easier querying
+        stage.static_labels {
+          values = {
+            cluster = "staging-demo-eks",
+          }
+        }
+
+        // Extract namespace/pod/container out of `instance`
+        stage.regex {
+          expression = "(?P<namespace>[^/]+)/(?P<pod>[^:]+):(?P<container>.+)"
+          source = "instance"
+        }
+
+        // Promote extracted values into Loki labels
+        stage.labels {
+          values = {
+            namespace  = "namespace",
+            pod        = "pod",
+            container  = "container",
+            cluster    = "cluster",
+          }
+        }
+
+        // DROP noisy namespaces to reduce log volume (cost + noise)
+        stage.drop {
+          expression = "namespace=~\"kube-system|kube-public|kube-node-lease\""
+        }
+      }
+
+      // Push logs to Loki gateway (multi-tenancy enabled)
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.monitoring/loki/api/v1/push"
+
+          headers = {
+            "X-Scope-OrgID" = "dev",
+          }
+        }
+      }
