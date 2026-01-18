@@ -203,3 +203,44 @@ kubectl apply -f ./test/app.yaml
 kubectl get pods -n demo
 kubectl get svc -n demo
 ```
+### Generate Load (Traffic)
+```bash
+kubectl run -n demo load-spike --rm -it --restart=Never \
+  --image=curlimages/curl -- \
+  sh -c 'while true; do curl -s -o /dev/null http://nginx-demo-svc.demo.svc.cluster.local; sleep 1; done'
+```
+This generates continuous requests so:
+- Prometheus shows CPU/memory usage
+- Loki shows HTTP GET logs
+## Grafana Explore Queries
+### Loki log query (demo namespace)
+```bash
+{namespace="demo"} |= "GET /"
+```
+### Logs per selected pod
+```bash
+{namespace="$namespace", pod=~"$pod"} |= "$search"
+```
+## Best PromQL Queries (Prometheus)
+### Top pods by CPU
+```bash
+topk(10,
+  sum(rate(container_cpu_usage_seconds_total{namespace!="",container!="POD"}[5m]))
+  by (namespace, pod)
+)
+```
+### Top pods by memory
+```bash
+topk(10,
+  sum(container_memory_working_set_bytes{namespace!="",container!="POD"})
+  by (namespace, pod)
+)
+```
+### Restarts (last 1h)
+```bash
+sum(increase(kube_pod_container_status_restarts_total[1h]))
+```
+### Node readiness
+```bash
+sum(kube_node_status_condition{condition="Ready",status="true"})
+```
