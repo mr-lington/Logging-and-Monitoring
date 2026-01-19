@@ -101,6 +101,16 @@ export AWS_PROFILE=lington
 export AWS_SDK_LOAD_CONFIG=1
 export AWS_REGION=eu-west-3
 ```
+```bash
+# needed for SSO
+export AWS_PROFILE="$AWS_PROFILE"
+export AWS_SDK_LOAD_CONFIG=1
+# needed for loki Helm chart values.yam
+export AWS_REGION="$AWS_REGION"
+export LOKI_BUCKET_NAME="$BUCKET_NAME"
+# export s3 variable.tf for loki
+export TF_VAR_bucket_name="$BUCKET_NAME"
+```
 ##  Terraform Deploy (EKS + IAM + VPC + Pod Identity)
 
 ```bash
@@ -244,3 +254,97 @@ sum(increase(kube_pod_container_status_restarts_total[1h]))
 ```bash
 sum(kube_node_status_condition{condition="Ready",status="true"})
 ```
+## Loki LogQL Correlation Queries
+### Error log rate per pod
+This is the correct LogQL metric query:
+```bash
+sum by (pod) (
+  rate({namespace="$namespace", pod=~"$pod"} |~ "(?i)error|fail|panic|exception" [5m])
+)
+```
+Total log volume per namespace
+```bash
+sum by (namespace) (
+  rate({namespace!=""}[5m])
+)
+```
+## Troubleshooting (Real Issues Fixed)
+This project intentionally documents real problems and fixes — showing practical DevOps troubleshooting ability.
+### 1) Terraform asked for var.bucket_name every time
+Cause: variable wasn’t exported properly.
+Wrong:
+```bash
+export TF_VAR_bucket-name= "$BUCKET_NAME"
+```
+Fix: Terraform variables must be valid identifiers → use underscore:
+```bash
+export TF_VAR_bucket_name="$BUCKET_NAME"
+```
+### 2) Port-forward error: bind: Only one usage of each socket address
+Cause: Another process already used port 9090
+Fix: use different local port:
+```bash
+kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9091:9090
+```
+Or kill existing PID using PowerShell:
+```bash
+Stop-Process -Id 25376 -Force
+```
+### 3) Load generator couldn’t connect
+Busybox wget timed out, but Curl worked.
+Fix: Use curl container:
+```bash
+kubectl run -n demo load-spike --rm -it --restart=Never --image=curlimages/curl -- \
+  sh -c 'while true; do curl -s -o /dev/null http://nginx-demo-svc.demo.svc.cluster.local; sleep 1; done'
+```
+or
+```bash
+kubectl run -n demo test --rm -it --restart=Never \
+  --image=curlimages/curl -- sh -c "curl -v --max-time 5 http://nginx-demo-svc.demo.svc.cluster.local"
+```
+### 4) LogQL error rate panel parse error (COUNT_OVER_TIME unexpected)
+Cause: Panel was created as Loki but using PromQL-style syntax (incorrect nesting).
+Correct approach uses Loki metric functions directly:
+```bash
+sum by (pod) (
+  rate({namespace="$namespace", pod=~"$pod"} |~ "(?i)error|fail|panic|exception" [5m])
+)
+```
+### 5) Loki failed flushing to S3 (403 AccessDenied)
+Cause: Pod Identity role missing correct S3 permissions
+Fix:
+- Terraform IAM policy must allow s3:PutObject on bucket objects:
+- arn:aws:s3:::BUCKET/*
+- Ensure role attached + pod identity association correct
+- Restart Loki after policy fix
+Useful Loki check:
+```bash
+kubectl logs -n monitoring loki-0 --tail=50
+```
+## Cost Saving Considerations (AWS)
+This stack can become expensive at scale, so several cost controls were considered:
+EKS managed node group with small instance size for labs
+S3 as Loki storage backend (cheap durable storage)
+Single binary Loki (instead of microservices mode)
+Avoided provisioning:
+- Dedicated monitoring EC2 servers
+- Self-managed Prometheus servers
+Recommended further optimizations:
+- Add Cluster Autoscaler / Karpenter
+- Use Spot instances for non-production node groups
+- Reduce Loki retention periods
+- Enable S3 lifecycle rules → Glacier / IA
+## Why This Project Matters
+This project demonstrates:
+Real-world AWS EKS deployment
+Secure IAM Pod Identity integration
+Production-ready monitoring setup
+Logging pipeline with long-term storage (S3)
+Troubleshooting ability (Terraform, Helm, Grafana, Loki queries)
+SRE-grade correlation: metrics + logs in one dashboard
+## Author
+### Darlington Imade
+DevOps / Cloud Engineer
+GitHub: https://github.com/mr-lington
+
+LinkedIn: https://linkedin.com/in/darlingtonimade
