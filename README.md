@@ -348,3 +348,13 @@ DevOps / Cloud Engineer
 GitHub: https://github.com/mr-lington
 
 LinkedIn: https://linkedin.com/in/darlingtonimade
+
+![grafana 1](https://github.com/user-attachments/assets/ae7b56d0-a4d1-480d-b958-d874baf1133d)
+
+![grafana 2 prometheus](https://github.com/user-attachments/assets/df030df8-9745-4f1e-a9bb-35ad230bbdd8)
+![prometheus 1](https://github.com/user-attachments/assets/00352ccc-55fc-4ce3-aa4a-bd50ab7b4d8f)
+![dash 1](https://github.com/user-attachments/assets/aaad4780-4887-408c-8121-499270c39d97)
+![dash 2](https://github.com/user-attachments/assets/6f78d5ce-4831-4983-8bb0-5dcbd4d24cbf)
+![dash 1](https://github.com/user-attachments/assets/8e44a92c-ddf0-445e-9780-26adc492e1ae)
+![dash 3](https://github.com/user-attachments/assets/e057f317-52b4-4bba-abe4-67d7e9f5a698)
+
